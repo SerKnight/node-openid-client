@@ -338,6 +338,8 @@ will also be checked to match the on in the TokenSet's ID Token.
     are `header`, `body`, or `query`. **Default:** 'header'.
   - `tokenType`: `<string>` The token type as the Authorization Header scheme. **Default:** 'Bearer'
     or the `token_type` property from a passed in TokenSet.
+  - `params`: `<Object>` additional parameters to send with the userinfo request (as query string
+    when GET, as x-www-form-urlencoded body when POST).
 - Returns: `Promise<Object>` Parsed userinfo response.
 
 ---
@@ -350,8 +352,13 @@ Fetches an arbitrary resource with the provided Access Token.
 - `accessToken`: `<string>` &vert; `<TokenSet>` Access Token value. When TokenSet instance is
   provided its `access_token` property will be used automatically.
 - `options`: `<Object>`
-  - `headers`: `<Object>` HTTP Headers to include in the request
-  - `verb`: `<string>` The HTTP verb to use for the request 'GET' or 'POST'. **Default:** 'GET'
+  - `headers`: `<Object>` HTTP Headers to include in the request.
+  - `body`: `<Object>` HTTP Body to include in the request.
+  - `query`: `<Object>` HTTP Query Parameters to include in the request.
+  - `json`: `<boolean>` Set to true to use JSON serialization for the body object (when provided)
+  - `form`: `<boolean>` Set to true to use `x-www-form-urlencoded` serialization for the body object
+    (when provided)
+  - `verb`: `<string>` The HTTP verb to use for the request. **Default:** 'GET'
   - `via`: `<string>` The mechanism to use to attach the Access Token to the request. Valid values
     are `header`, `body`, or `query`. **Default:** 'header'.
   - `tokenType`: `<string>` The token type as the Authorization Header scheme. **Default:** 'Bearer'

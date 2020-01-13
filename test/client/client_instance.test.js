@@ -345,7 +345,7 @@ describe('Client', () => {
             grant_type: 'authorization_code',
           });
         })
-        .post('/token', () => true)
+        .post('/token', () => true) // to make sure filteringRequestBody works
         .reply(200, {});
 
       return this.client.callback('https://rp.example.com/cb', {
@@ -455,7 +455,7 @@ describe('Client', () => {
               grant_type: 'authorization_code',
             });
           })
-          .post('/token', () => true)
+          .post('/token', () => true) // to make sure filteringRequestBody works
           .reply(200, {});
 
         await client.callback('https://rp.example.com/cb', {
@@ -495,7 +495,7 @@ describe('Client', () => {
               grant_type: 'authorization_code',
             });
           })
-          .post('/token', () => true)
+          .post('/token', () => true) // to make sure filteringRequestBody works
           .reply(200, {});
 
         await client.callback('https://rp.example.com/cb', {
@@ -637,7 +637,7 @@ describe('Client', () => {
             grant_type: 'authorization_code',
           });
         })
-        .post('/token', () => true)
+        .post('/token', () => true) // to make sure filteringRequestBody works
         .reply(200, {
           access_token: 'tokenValue',
         });
@@ -684,7 +684,7 @@ describe('Client', () => {
               grant_type: 'authorization_code',
             });
           })
-          .post('/token', () => true)
+          .post('/token', () => true) // to make sure filteringRequestBody works
           .reply(200, {});
 
         await client.oauthCallback('https://rp.example.com/cb', {
@@ -724,7 +724,7 @@ describe('Client', () => {
               grant_type: 'authorization_code',
             });
           })
-          .post('/token', () => true)
+          .post('/token', () => true) // to make sure filteringRequestBody works
           .reply(200, {});
 
         await client.oauthCallback('https://rp.example.com/cb', {
@@ -889,7 +889,7 @@ describe('Client', () => {
             grant_type: 'refresh_token',
           });
         })
-        .post('/token', () => true)
+        .post('/token', () => true) // to make sure filteringRequestBody works
         .reply(200, {});
 
       return this.client.refresh('refreshValue').then(() => {
@@ -919,7 +919,7 @@ describe('Client', () => {
             grant_type: 'refresh_token',
           });
         })
-        .post('/token', () => true)
+        .post('/token', () => true) // to make sure filteringRequestBody works
         .reply(200, {});
 
       return this.client.refresh(new TokenSet({
@@ -982,6 +982,26 @@ describe('Client', () => {
 
       return client.userinfo('tokenValue').then(() => {
         expect(nock.isDone()).to.be.true;
+      });
+    });
+
+    it('only GET and POST is supported', function () {
+      const issuer = new Issuer({ userinfo_endpoint: 'https://op.example.com/me' });
+      const client = new issuer.Client({ client_id: 'identifier', token_endpoint_auth_method: 'none' });
+
+      return client.userinfo('tokenValue', { verb: 'PUT' }).then(fail, (error) => {
+        expect(error).to.be.instanceof(TypeError);
+        expect(error.message).to.eql('#userinfo() verb can only be POST or a GET');
+      });
+    });
+
+    it('via has a valid set of options', function () {
+      const issuer = new Issuer({ userinfo_endpoint: 'https://op.example.com/me' });
+      const client = new issuer.Client({ client_id: 'identifier', token_endpoint_auth_method: 'none' });
+
+      return client.userinfo('tokenValue', { via: 'foo' }).then(fail, (error) => {
+        expect(error).to.be.instanceof(TypeError);
+        expect(error.message).to.eql('opts.via must be either "header", "query", or "body"');
       });
     });
 
@@ -1103,7 +1123,8 @@ describe('Client', () => {
             access_token: 'tokenValue',
           });
         })
-        .post('/me').reply(200, {});
+        .post('/me', () => true) // to make sure filteringRequestBody works
+        .reply(200, {});
 
       return client.userinfo('tokenValue', { verb: 'POST', via: 'body' }).then(() => {
         expect(nock.isDone()).to.be.true;
@@ -1121,7 +1142,8 @@ describe('Client', () => {
             foo: 'bar',
           });
         })
-        .post('/me').reply(200, {});
+        .post('/me', () => true) // to make sure filteringRequestBody works
+        .reply(200, {});
 
       return client.userinfo('tokenValue', {
         verb: 'POST',
@@ -1174,7 +1196,7 @@ describe('Client', () => {
       const client = new issuer.Client({ client_id: 'identifier', token_endpoint_auth_method: 'none' });
 
       return client.userinfo('tokenValue', { via: 'query', verb: 'post' }).then(fail, ({ message }) => {
-        expect(message).to.eql('resource servers should only parse query strings for GET requests');
+        expect(message).to.eql('userinfo endpoints will only parse query strings for GET requests');
       });
     });
 
@@ -1325,15 +1347,322 @@ describe('Client', () => {
     });
   });
 
+  describe('#resource', function () {
+    it('takes a string token', function () {
+      const issuer = new Issuer({});
+      const client = new issuer.Client({ client_id: 'identifier', token_endpoint_auth_method: 'none' });
+
+      nock('https://rs.example.com')
+        .matchHeader('Authorization', 'Bearer tokenValue')
+        .get('/resource')
+        .reply(200, {});
+
+      return client.resource('https://rs.example.com/resource', 'tokenValue').then(() => {
+        expect(nock.isDone()).to.be.true;
+      });
+    });
+
+    it('takes a string token and a tokenType option', function () {
+      const issuer = new Issuer({});
+      const client = new issuer.Client({ client_id: 'identifier', token_endpoint_auth_method: 'none' });
+
+      nock('https://rs.example.com')
+        .matchHeader('Authorization', 'DPoP tokenValue')
+        .get('/resource')
+        .reply(200, {});
+
+      return client.resource('https://rs.example.com/resource', 'tokenValue', { tokenType: 'DPoP' }).then(() => {
+        expect(nock.isDone()).to.be.true;
+      });
+    });
+
+    it('takes a tokenset', function () {
+      const issuer = new Issuer({});
+      const client = new issuer.Client({
+        client_id: 'identifier',
+        id_token_signed_response_alg: 'none',
+      });
+
+      nock('https://rs.example.com')
+        .matchHeader('Authorization', 'Bearer tokenValue')
+        .get('/resource')
+        .reply(200, {
+          sub: 'subject',
+        });
+
+      return client.resource('https://rs.example.com/resource', new TokenSet({
+        id_token: 'eyJhbGciOiJub25lIn0.eyJzdWIiOiJzdWJqZWN0In0.',
+        refresh_token: 'bar',
+        access_token: 'tokenValue',
+      })).then(() => {
+        expect(nock.isDone()).to.be.true;
+      });
+    });
+
+    it('takes a tokenset with a token_type', function () {
+      const issuer = new Issuer({});
+      const client = new issuer.Client({
+        client_id: 'identifier',
+        id_token_signed_response_alg: 'none',
+      });
+
+      nock('https://rs.example.com')
+        .matchHeader('Authorization', 'DPoP tokenValue')
+        .get('/resource')
+        .reply(200, {
+          sub: 'subject',
+        });
+
+      return client.resource('https://rs.example.com/resource', new TokenSet({
+        id_token: 'eyJhbGciOiJub25lIn0.eyJzdWIiOiJzdWJqZWN0In0.',
+        refresh_token: 'bar',
+        access_token: 'tokenValue',
+        token_type: 'DPoP',
+      })).then(() => {
+        expect(nock.isDone()).to.be.true;
+      });
+    });
+
+    it('validates an access token is present in the tokenset', function () {
+      const issuer = new Issuer({});
+      const client = new issuer.Client({ client_id: 'identifier', token_endpoint_auth_method: 'none' });
+
+      return client.resource('https://rs.example.com/resource', new TokenSet({
+        id_token: 'foo',
+        refresh_token: 'bar',
+      })).then(fail, (error) => {
+        expect(error.message).to.equal('access_token not present in TokenSet');
+      });
+    });
+
+    Object.entries({
+      JSON: {
+        parser: JSON,
+        json: true,
+      },
+      urlencoded: {
+        parser: querystring,
+      },
+    }).forEach(([label, { parser, ...opts }]) => {
+      describe(label, () => {
+        ['POST', 'PATCH', 'PUT'].forEach((verb) => {
+          describe(verb, () => {
+            it('can submit a body', function () {
+              const issuer = new Issuer({});
+              const client = new issuer.Client({ client_id: 'identifier', token_endpoint_auth_method: 'none' });
+
+              nock('https://rs.example.com')
+                .matchHeader('Authorization', 'Bearer tokenValue')
+                .filteringRequestBody(function (body) {
+                  expect(parser.parse(body)).to.eql({
+                    foo: 'bar',
+                  });
+                })[verb.toLowerCase()]('/resource', () => true) // to make sure filteringRequestBody works
+                .reply(200, {});
+
+              return client.resource('https://rs.example.com/resource', 'tokenValue', {
+                ...opts,
+                verb,
+                body: { foo: 'bar' },
+              }).then(() => {
+                expect(nock.isDone()).to.be.true;
+              });
+            });
+
+            it('can submit a query', function () {
+              const issuer = new Issuer({});
+              const client = new issuer.Client({ client_id: 'identifier', token_endpoint_auth_method: 'none' });
+
+              nock('https://rs.example.com')
+                .matchHeader('Authorization', 'Bearer tokenValue')[verb.toLowerCase()]('/resource?foo=bar')
+                .reply(200, {});
+
+              return client.resource('https://rs.example.com/resource', 'tokenValue', {
+                ...opts,
+                verb,
+                query: { foo: 'bar' },
+              }).then(() => {
+                expect(nock.isDone()).to.be.true;
+              });
+            });
+
+            it('can submit access token in a body', function () {
+              const issuer = new Issuer({});
+              const client = new issuer.Client({ client_id: 'identifier', token_endpoint_auth_method: 'none' });
+
+              nock('https://rs.example.com')
+                .filteringRequestBody(function (body) {
+                  expect(parser.parse(body)).to.eql({
+                    access_token: 'tokenValue',
+                  });
+                })[verb.toLowerCase()]('/resource', () => true) // to make sure filteringRequestBody works
+                .reply(200, {});
+
+              return client.resource('https://rs.example.com/resource', 'tokenValue', { verb, via: 'body', ...opts }).then(() => {
+                expect(nock.isDone()).to.be.true;
+              });
+            });
+
+            it('can submit access token in a query', function () {
+              const issuer = new Issuer({});
+              const client = new issuer.Client({ client_id: 'identifier', token_endpoint_auth_method: 'none' });
+
+              nock('https://rs.example.com')
+                .filteringRequestBody(function (body) {
+                  expect(parser.parse(body)).to.eql({ foo: 'bar' });
+                })[verb.toLowerCase()]('/resource?access_token=tokenValue', () => true) // to make sure filteringRequestBody works
+                .reply(200, {});
+
+              return client.resource('https://rs.example.com/resource', 'tokenValue', {
+                verb, via: 'query', body: { foo: 'bar' }, ...opts,
+              }).then(() => {
+                expect(nock.isDone()).to.be.true;
+              });
+            });
+
+            it('handles the deprecated params options', function () {
+              const issuer = new Issuer({});
+              const client = new issuer.Client({ client_id: 'identifier', token_endpoint_auth_method: 'none' });
+
+              nock('https://rs.example.com')
+                .matchHeader('Authorization', 'Bearer tokenValue')
+                .filteringRequestBody(function (body) {
+                  expect(parser.parse(body)).to.eql({
+                    foo: 'bar',
+                  });
+                })[verb.toLowerCase()]('/resource', () => true) // to make sure filteringRequestBody works
+                .reply(200, {});
+
+              return client.resource('https://rs.example.com/resource', 'tokenValue', {
+                ...opts,
+                verb,
+                params: { foo: 'bar' },
+              }).then(() => {
+                expect(nock.isDone()).to.be.true;
+              });
+            });
+          });
+        });
+
+        ['GET', 'HEAD', 'DELETE'].forEach((verb) => {
+          describe(verb, () => {
+            it('can submit a query', function () {
+              const issuer = new Issuer({});
+              const client = new issuer.Client({ client_id: 'identifier', token_endpoint_auth_method: 'none' });
+
+              nock('https://rs.example.com')
+                .matchHeader('Authorization', 'Bearer tokenValue')[verb.toLowerCase()]('/resource?foo=bar')
+                .reply(200, {});
+
+              return client.resource('https://rs.example.com/resource', 'tokenValue', {
+                ...opts,
+                verb,
+                query: { foo: 'bar' },
+              }).then(() => {
+                expect(nock.isDone()).to.be.true;
+              });
+            });
+
+            it('can submit access token in a query', function () {
+              const issuer = new Issuer({});
+              const client = new issuer.Client({ client_id: 'identifier', token_endpoint_auth_method: 'none' });
+
+              nock('https://rs.example.com')
+                .filteringRequestBody(function (body) {
+                  expect(parser.parse(body)).to.eql({ foo: 'bar' });
+                })[verb.toLowerCase()]('/resource?access_token=tokenValue', () => true) // to make sure filteringRequestBody works
+                .reply(200, {});
+
+              return client.resource('https://rs.example.com/resource', 'tokenValue', {
+                verb, via: 'query', body: { foo: 'bar' }, ...opts,
+              }).then(() => {
+                expect(nock.isDone()).to.be.true;
+              });
+            });
+
+            it('handles the deprecated params options', function () {
+              const issuer = new Issuer({});
+              const client = new issuer.Client({ client_id: 'identifier', token_endpoint_auth_method: 'none' });
+
+              nock('https://rs.example.com')
+                .matchHeader('Authorization', 'Bearer tokenValue')[verb.toLowerCase()]('/resource?foo=bar')
+                .reply(200, {});
+
+              return client.resource('https://rs.example.com/resource', 'tokenValue', {
+                ...opts,
+                verb,
+                params: { foo: 'bar' },
+              }).then(() => {
+                expect(nock.isDone()).to.be.true;
+              });
+            });
+          });
+        });
+      });
+    });
+
+    it('can add extra params in a body when post', function () {
+      const issuer = new Issuer({});
+      const client = new issuer.Client({ client_id: 'identifier', token_endpoint_auth_method: 'none' });
+
+      nock('https://rs.example.com')
+        .filteringRequestBody(function (body) {
+          expect(querystring.parse(body)).to.eql({
+            access_token: 'tokenValue',
+            foo: 'bar',
+          });
+        })
+        .post('/resource', () => true) // to make sure filteringRequestBody works
+        .reply(200, {});
+
+      return client.resource('https://rs.example.com/resource', 'tokenValue', {
+        verb: 'POST',
+        via: 'body',
+        params: { foo: 'bar' },
+      }).then(() => {
+        expect(nock.isDone()).to.be.true;
+      });
+    });
+
+    it('can add extra params in a query when non-post', function () {
+      const issuer = new Issuer({});
+      const client = new issuer.Client({ client_id: 'identifier', token_endpoint_auth_method: 'none' });
+
+      nock('https://rs.example.com')
+        .get('/resource?foo=bar')
+        .reply(200, {});
+
+      return client.resource('https://rs.example.com/resource', 'tokenValue', {
+        params: { foo: 'bar' },
+      }).then(() => {
+        expect(nock.isDone()).to.be.true;
+      });
+    });
+
+    it('can submit access token in a query when get', function () {
+      const issuer = new Issuer({});
+      const client = new issuer.Client({ client_id: 'identifier', token_endpoint_auth_method: 'none' });
+
+      nock('https://rs.example.com')
+        .get('/resource?access_token=tokenValue')
+        .reply(200, {});
+
+      return client.resource('https://rs.example.com/resource', 'tokenValue', { via: 'query' }).then(() => {
+        expect(nock.isDone()).to.be.true;
+      });
+    });
+  });
+
   describe('#introspect', function () {
     it('posts the token in a body and returns the parsed response', function () {
       nock('https://op.example.com')
         .filteringRequestBody(function (body) {
           expect(querystring.parse(body)).to.eql({
             token: 'tokenValue',
+            client_id: 'identifier',
           });
         })
-        .post('/token/introspect')
+        .post('/token/introspect', () => true) // to make sure filteringRequestBody works
         .reply(200, {
           endpoint: 'response',
         });
@@ -1351,11 +1680,12 @@ describe('Client', () => {
       nock('https://op.example.com')
         .filteringRequestBody(function (body) {
           expect(querystring.parse(body)).to.eql({
+            client_id: 'identifier',
             token: 'tokenValue',
             token_type_hint: 'access_token',
           });
         })
-        .post('/token/introspect')
+        .post('/token/introspect', () => true) // to make sure filteringRequestBody works
         .reply(200, {
           endpoint: 'response',
         });
@@ -1441,10 +1771,11 @@ describe('Client', () => {
       nock('https://op.example.com')
         .filteringRequestBody(function (body) {
           expect(querystring.parse(body)).to.eql({
+            client_id: 'identifier',
             token: 'tokenValue',
           });
         })
-        .post('/token/revoke')
+        .post('/token/revoke', () => true) // to make sure filteringRequestBody works
         .reply(200, {
           endpoint: 'response',
         });
@@ -1462,11 +1793,12 @@ describe('Client', () => {
       nock('https://op.example.com')
         .filteringRequestBody(function (body) {
           expect(querystring.parse(body)).to.eql({
+            client_id: 'identifier',
             token: 'tokenValue',
             token_type_hint: 'access_token',
           });
         })
-        .post('/token/revoke')
+        .post('/token/revoke', () => true) // to make sure filteringRequestBody works
         .reply(200, {
           endpoint: 'response',
         });

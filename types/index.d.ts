@@ -403,7 +403,7 @@ export class Client {
    * will be used automatically.
    * @param options Options for the UserInfo request.
    */
-  userinfo(accessToken: TokenSet | string, options?: { verb?: 'GET' | 'POST', via?: 'header' | 'body' | 'query', tokenType?: string }): Promise<UserinfoResponse>;
+  userinfo(accessToken: TokenSet | string, options?: { verb?: 'GET' | 'POST', via?: 'header' | 'body' | 'query', tokenType?: string, params?: object }): Promise<UserinfoResponse>;
 
   /**
    * Fetches an arbitrary resource with the provided Access Token.
@@ -413,7 +413,16 @@ export class Client {
    * will be used automatically.
    * @param options Options for the request.
    */
-  resource(resourceUrl: string, accessToken: TokenSet | string, options?: { headers?: object, verb?: 'GET' | 'POST', via?: 'header' | 'body' | 'query', tokenType?: string }): GotPromise<Buffer>;
+  resource(resourceUrl: string, accessToken: TokenSet | string, options?: {
+    headers?: object
+    verb?: 'GET' | 'POST' | 'PUT' | 'HEAD' | 'DELETE' | 'OPTIONS' | 'TRACE'
+    body?: object
+    query?: object
+    json?: boolean
+    form?: boolean
+    via?: 'header' | 'body' | 'query'
+    tokenType?: string
+  }): GotPromise<Buffer>;
 
   /**
    * Performs an arbitrary grant_type exchange at the token_endpoint.
